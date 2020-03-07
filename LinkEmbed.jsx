@@ -4,7 +4,9 @@ const cache = {}
 const { getMessage } = getModule(['getMessages'], false)
 const { parse } = getModule(['parse', 'parseTopic'], false)
 const User = getModule(m => m.prototype && m.prototype.tag, false)
+const Timestamp = getModule(m => m.prototype && m.prototype.toDate && m.prototype.month, false)
 const Image = getModuleByDisplayName('LazyImageZoomable', false)
+const { MessageTimestamp } = getModule(['MessageTimestamp'], false)
 const classes = {
     ...getModule(['anchorUnderlineOnHover'], false),
     ...getModule(['embedAuthor'], false),
@@ -41,6 +43,7 @@ async function getMsg(channelId, messageId) {
         message = data.body[0]
         if (!message) return
         message.author = new User(message.author)
+        message.timestamp = new Timestamp(message.timestamp)
         await new Promise(r => setTimeout(r, 2500))
     }
     cache[messageId] = message
@@ -87,6 +90,11 @@ module.exports = class LinkEmbed extends React.Component {
                     src={image.proxy_url}
                     className={`${classes.embedMedia} ${classes.embedImage} ${classes.embedWrapper}`}
                     shouldLink={true} />) : null}
+                <div class={`${classes.embedFooter} ${classes.embedFooterText} ${classes.embedMargin}`}>
+                    {parse(`<#${this.state.channel_id}>`)}
+                    <span class={classes.embedFooterSeparator}>•</span>
+                    <MessageTimestamp timestamp={this.state.timestamp} />
+                </div>
             </div>
         </div>)
     }

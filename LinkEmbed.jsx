@@ -29,9 +29,11 @@ const getMsgWithQueue = (() => {
     return (channelId, messageId) => (pending = run(channelId, messageId))
 })()
 
+let lastFetch = 0
 async function getMsg(channelId, messageId) {
-    let message = cache[messageId] || getMessage(channelId, messageId)
+    let message = getMessage(channelId, messageId) || cache[messageId]
     if (!message) {
+        if (lastFetch > Date.now() - 2500) await new Promise(r => setTimeout(r, 2500))
         const data = await get({
             url: Endpoints.MESSAGES(channelId),
             query: {
@@ -40,11 +42,11 @@ async function getMsg(channelId, messageId) {
             },
             retries: 2
         })
+        lastFetch = Date.now()
         message = data.body[0]
         if (!message) return
         message.author = new User(message.author)
         message.timestamp = new Timestamp(message.timestamp)
-        await new Promise(r => setTimeout(r, 2500))
     }
     cache[messageId] = message
     return message

@@ -11,7 +11,7 @@ module.exports = class MessageLinksEmbed extends Plugin {
             const [{ childrenMessageContent: { props: { content, message } } }] = a
             if (!content || !message) return a
             const match = message.content.match(/https?:\/\/((canary|ptb)\.)?discordapp\.com\/channels\/(\d{17,19}|@me)\/\d{17,19}\/\d{17,19}/g)
-            if (!match) return a
+            if (!match || content.find(c => c.type && c.type.name == 'LinkEmbed')) return a
             match.forEach(link => {
                 content.push(React.createElement(LinkEmbed, { link }))
             })

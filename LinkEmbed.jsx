@@ -6,6 +6,7 @@ const { parse } = getModule(['parse', 'parseTopic'], false)
 const User = getModule(m => m.prototype && m.prototype.tag, false)
 const Timestamp = getModule(m => m.prototype && m.prototype.toDate && m.prototype.month, false)
 const Image = getModuleByDisplayName('LazyImageZoomable', false)
+const Video = getModuleByDisplayName('LazyVideo', false)
 const { MessageTimestamp } = getModule(['MessageTimestamp'], false)
 const classes = {
     ...getModule(['anchorUnderlineOnHover'], false),
@@ -52,6 +53,8 @@ async function getMsg(channelId, messageId) {
     return message
 }
 
+const isVideo = attachment => !!attachment.url.match(/\.(?:mp4|mov|webm)$/)
+
 module.exports = class LinkEmbed extends React.Component {
     constructor(props) {
         super(props)
@@ -68,11 +71,35 @@ module.exports = class LinkEmbed extends React.Component {
     render() {
         if (!this.state) return null
 
-        let image
-        if (this.state.attachments[0] && this.state.attachments[0].width) image = this.state.attachments[0]
-        if (this.state.embeds[0] && this.state.embeds[0].type == 'image')
-            image = this.state.embeds[0].image || this.state.embeds[0].thumbnail
-        if (image && !image.proxy_url) image.proxy_url = image.proxyURL
+        let attachment = null
+        if (this.state.attachments[0] &&
+            this.state.attachments[0].width)
+            attachment = this.state.attachments[0]
+        if (this.state.embeds[0] &&
+            this.state.embeds[0].type == 'image')
+            attachment = this.state.embeds[0].image || this.state.embeds[0].thumbnail
+
+        if (attachment) {
+            if (!attachment.proxy_url) attachment.proxy_url = attachment.proxyURL
+            if (isVideo(attachment)) attachment = (<Video
+                className={classes.embedWrapper}
+                fileName={attachment.filename}
+                fileSize={attachment.size}
+                naturalHeight={attachment.height}
+                naturalWidth={attachment.width}
+                poster={attachment.proxy_url + '?format=jpeg'}
+                src={attachment.url}
+                width={attachment.width > 370 ? 370 : attachment.width}
+                playable={true}
+            />); else attachment = (<Image
+                width={attachment.width}
+                height={attachment.height}
+                original={attachment.url}
+                src={attachment.proxy_url}
+                className={`${classes.embedMedia} ${classes.embedImage} ${classes.embedWrapper}`}
+                shouldLink={true}
+            />)
+        }
 
         // unfortunately, but there is no easy-to-use embed component
         return (<div class={classes.container}>
@@ -85,13 +112,7 @@ module.exports = class LinkEmbed extends React.Component {
                 <div class={`${classes.embedDescription} ${classes.embedMargin}`}>
                     {parse(this.state.content)}
                 </div>
-                {image ? (<Image
-                    width={image.width}
-                    height={image.height}
-                    original={image.url}
-                    src={image.proxy_url}
-                    className={`${classes.embedMedia} ${classes.embedImage} ${classes.embedWrapper}`}
-                    shouldLink={true} />) : null}
+                {attachment}
                 <div class={`${classes.embedFooter} ${classes.embedFooterText} ${classes.embedMargin}`}>
                     {parse(`<#${this.state.channel_id}>`)}
                     <span class={classes.embedFooterSeparator}>•</span>

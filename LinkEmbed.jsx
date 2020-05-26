@@ -1,12 +1,13 @@
-const { getModule, getModuleByDisplayName, React, http: { get }, constants: { Endpoints } } = require('powercord/webpack')
+const { getModule, React, http: { get }, constants: { Endpoints } } = require('powercord/webpack')
 const cache = {}
 
 const { getMessage } = getModule(['getMessages'], false)
+const { jumpToMessage } = getModule(['jumpToMessage'], false)
 const { parse } = getModule(['parse', 'parseTopic'], false)
+const { renderImageComponent, renderVideoComponent } = getModule(['renderVideoComponent'], false)
 const User = getModule(m => m.prototype && m.prototype.tag, false)
 const Timestamp = getModule(m => m.prototype && m.prototype.toDate && m.prototype.month, false)
-const Image = getModuleByDisplayName('LazyImageZoomable', false)
-const Video = getModuleByDisplayName('LazyVideo', false)
+const { EmbedVideo } = getModule(['EmbedVideo'], false)
 const { MessageTimestamp } = getModule(['MessageTimestamp'], false)
 const classes = {
     ...getModule(['anchorUnderlineOnHover'], false),
@@ -71,34 +72,50 @@ module.exports = class LinkEmbed extends React.Component {
     render() {
         if (!this.state) return null
 
-        let attachment = null
+        let attachment = null, video
         if (this.state.attachments[0] &&
             this.state.attachments[0].width)
             attachment = this.state.attachments[0]
-        if (this.state.embeds[0] &&
-            this.state.embeds[0].type == 'image')
-            attachment = this.state.embeds[0].image || this.state.embeds[0].thumbnail
+        if (this.state.embeds[0]) {
+            const embed = this.state.embeds[0]
+            if (embed.type == 'image')
+                attachment = this.state.embeds[0].image || this.state.embeds[0].thumbnail
+            else if (embed.type == 'video' || embed.type == 'gifv') {
+                video = true
+                if (embed.provider) attachment = embed
+                else attachment = embed.video
+            }
+        }
 
         if (attachment) {
             if (!attachment.proxy_url) attachment.proxy_url = attachment.proxyURL
-            if (isVideo(attachment)) attachment = (<Video
-                className={classes.embedWrapper}
-                fileName={attachment.filename}
-                fileSize={attachment.size}
-                naturalHeight={attachment.height}
-                naturalWidth={attachment.width}
-                poster={attachment.proxy_url + '?format=jpeg'}
-                src={attachment.url}
-                width={attachment.width > 370 ? 370 : attachment.width}
-                playable={true}
-            />); else attachment = (<Image
-                width={attachment.width}
-                height={attachment.height}
-                original={attachment.url}
-                src={attachment.proxy_url}
-                className={`${classes.embedMedia} ${classes.embedImage} ${classes.embedWrapper}`}
-                shouldLink={true}
-            />)
+            if (video || isVideo(attachment)) {
+                if (attachment.provider) attachment = (<EmbedVideo
+                    className={`${classes.embedMedia} ${classes.embedWrapper}`}
+                    href={attachment.url}
+                    maxWidth={400}
+                    playable={true}
+                    renderImageComponent={renderImageComponent}
+                    renderVideoComponent={renderVideoComponent}
+                    thumbnail={attachment.thumbnail}
+                    video={attachment.video}
+                />); else attachment = renderVideoComponent({
+                    className: `${classes.embedMedia} ${classes.embedWrapper}`,
+                    fileName: attachment.filename,
+                    fileSize: attachment.size,
+                    naturalHeight: attachment.height,
+                    naturalWidth: attachment.width,
+                    poster: attachment.proxy_url + '?format=jpeg',
+                    src: attachment.url,
+                    width: attachment.width > 400 ? 400 : attachment.width
+                })
+            } else attachment = renderImageComponent({
+                className: `${classes.embedMedia} ${classes.embedImage} ${classes.embedWrapper}`,
+                src: attachment.proxy_url,
+                width: attachment.width,
+                height: attachment.height,
+                original: attachment.url
+            })
         }
 
         // unfortunately, but there is no easy-to-use embed component
@@ -107,7 +124,7 @@ module.exports = class LinkEmbed extends React.Component {
                 <div class={`${classes.embedAuthor} ${classes.embedMargin}`}>
                     <img class={classes.embedAuthorIcon} src={this.state.author.avatarURL} />
                     <a class={`${classes.anchor} ${classes.embedAuthorName} ${classes.embedAuthorNameLink} ${classes.embedLink}`}
-                        href={this.props.link} rel='noreferrer noopener' target='_blank'>{this.state.author.tag}</a>
+                        href={this.props.link} onClick={e => this.jumpToMessage(e)}>{this.state.author.tag}</a>
                 </div>
                 <div class={`${classes.embedDescription} ${classes.embedMargin}`}>
                     {parse(this.state.content)}
@@ -120,5 +137,10 @@ module.exports = class LinkEmbed extends React.Component {
                 </div>
             </div>
         </div>)
+    }
+
+    jumpToMessage(e) {
+        e.preventDefault()
+        jumpToMessage(this.state.channel_id, this.state.id)
     }
 }

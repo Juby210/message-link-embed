@@ -1,10 +1,11 @@
-const { getModule, React, http: { get }, constants: { Endpoints } } = require('powercord/webpack')
-const cache = {}
+const { getModule, getModuleByDisplayName, React, http: { get }, constants: { Endpoints } } = require('powercord/webpack')
+const cache = {}, suppressed = []
 
 const { getMessage } = getModule(['getMessages'], false)
 const { jumpToMessage } = getModule(['jumpToMessage'], false)
 const { parse } = getModule(['parse', 'parseTopic'], false)
 const { renderImageComponent, renderVideoComponent } = getModule(['renderVideoComponent'], false)
+const { renderSuppressButton } = getModuleByDisplayName('Embed', false).prototype
 const User = getModule(m => m.prototype && m.prototype.tag, false)
 const Timestamp = getModule(m => m.prototype && m.prototype.toDate && m.prototype.month, false)
 const { EmbedVideo } = getModule(['EmbedVideo'], false)
@@ -63,14 +64,14 @@ module.exports = class LinkEmbed extends React.Component {
     }
 
     async componentDidMount() {
-        if (!this.state) {
+        if (!suppressed.includes(this.props.id) && !this.state) {
             const linkArray = this.props.link.split('/')
             this.setState(await getMsgWithQueue(linkArray[5], linkArray[6]))
         }
     }
 
     render() {
-        if (!this.state) return null
+        if (suppressed.includes(this.props.id) || !this.state) return null
 
         let attachment = null, video
         if (this.state.attachments[0] &&
@@ -121,6 +122,7 @@ module.exports = class LinkEmbed extends React.Component {
         // unfortunately, but there is no easy-to-use embed component
         return (<div class={classes.container}>
             <div class={`${classes.embed} ${classes.embedFull} ${classes.embedWrapper} ${classes.markup} ${classes.grid}`}>
+                {renderSuppressButton(() => this.suppress())}
                 <div class={`${classes.embedAuthor} ${classes.embedMargin}`}>
                     <img class={classes.embedAuthorIcon} src={this.state.author.avatarURL} />
                     <a class={`${classes.anchor} ${classes.embedAuthorName} ${classes.embedAuthorNameLink} ${classes.embedLink}`}
@@ -142,5 +144,10 @@ module.exports = class LinkEmbed extends React.Component {
     jumpToMessage(e) {
         e.preventDefault()
         jumpToMessage(this.state.channel_id, this.state.id)
+    }
+
+    suppress() {
+        suppressed.push(this.props.id)
+        this.setState({})
     }
 }

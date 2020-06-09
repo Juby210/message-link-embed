@@ -121,7 +121,7 @@ module.exports = class LinkEmbed extends React.Component {
 
         // unfortunately, but there is no easy-to-use embed component
         return (<div class={classes.container}>
-            <div class={`${classes.embed} ${classes.embedFull} ${classes.embedWrapper} ${classes.markup} ${classes.grid}`}>
+            <div style={this.state.colorString ? { borderLeft: "4px solid "+this.state.colorString } : {}} class={`${classes.embed} ${classes.embedFull} ${classes.embedWrapper} ${classes.markup} ${classes.grid}`}>
                 {renderSuppressButton(() => this.suppress())}
                 <div class={`${classes.embedAuthor} ${classes.embedMargin}`}>
                     <img class={classes.embedAuthorIcon} src={this.state.author.avatarURL} />

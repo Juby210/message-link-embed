@@ -7,6 +7,7 @@ const { parse } = getModule(['parse', 'parseTopic'], false)
 const { renderImageComponent, renderVideoComponent } = getModule(['renderVideoComponent'], false)
 const { renderSuppressButton } = getModuleByDisplayName('Embed', false).prototype
 const User = getModule(m => m.prototype && m.prototype.tag, false)
+const Attachment = getModuleByDisplayName('Attachment', false);
 const Timestamp = getModule(m => m.prototype && m.prototype.toDate && m.prototype.month, false)
 const { EmbedVideo } = getModule(['EmbedVideo'], false)
 const { MessageTimestamp } = getModule(['MessageTimestamp'], false)
@@ -55,8 +56,7 @@ async function getMsg(channelId, messageId) {
     return message
 }
 
-const isVideo = attachment => !!attachment.url.match(/\.(?:mp4|mov|webm)$/)
-
+const isVideo = attachment => !!attachment.url.match(/\.(?:mp4|mov|webm)$/);
 module.exports = class LinkEmbed extends React.Component {
     constructor(props) {
         super(props)
@@ -64,19 +64,22 @@ module.exports = class LinkEmbed extends React.Component {
     }
 
     async componentDidMount() {
-        if (!suppressed.includes(this.props.id) && !this.state) {
+        if (!this.state) {
             const linkArray = this.props.link.split('/')
             this.setState(await getMsgWithQueue(linkArray[5], linkArray[6]))
         }
     }
 
     render() {
-        if (suppressed.includes(this.props.id) || !this.state) return null
-
-        let attachment = null, video
+        if (!this.state) return null;
+        if (suppressed.includes(this.props.id)) return (
+            <span onClick={() => this.handleSuppress} style={{ color: "white", cursor: "pointer", userSelect: "none", width: "13px", height: "13px", fontSize: "20px" }}>x</span>
+        )
+        let attachment = null, video, file = null;
         if (this.state.attachments[0] &&
             this.state.attachments[0].width)
-            attachment = this.state.attachments[0]
+            attachment = this.state.attachments[0];
+        if(this.state.attachments[0] && this.state.attachments[0].hasOwnProperty("size")) file = this.state.attachments[0];
         if (this.state.embeds[0]) {
             const embed = this.state.embeds[0]
             if (embed.type == 'image')
@@ -118,11 +121,13 @@ module.exports = class LinkEmbed extends React.Component {
                 original: attachment.url
             })
         }
-
+        if(file) file = (
+            <Attachment url={file.url} filename={file.filename} size={file.size}/>
+        )
         // unfortunately, but there is no easy-to-use embed component
         return (<div class={classes.container}>
             <div style={this.state.colorString ? { borderLeft: "4px solid "+this.state.colorString } : {}} class={`${classes.embed} ${classes.embedFull} ${classes.embedWrapper} ${classes.markup} ${classes.grid}`}>
-                {renderSuppressButton(() => this.suppress())}
+                {renderSuppressButton(() => this.handleSuppress())}
                 <div class={`${classes.embedAuthor} ${classes.embedMargin}`}>
                     <img class={classes.embedAuthorIcon} src={this.state.author.avatarURL} />
                     <a class={`${classes.anchor} ${classes.embedAuthorName} ${classes.embedAuthorNameLink} ${classes.embedLink}`}
@@ -132,6 +137,7 @@ module.exports = class LinkEmbed extends React.Component {
                     {parse(this.state.content)}
                 </div>
                 {attachment}
+                {file}
                 <div class={`${classes.embedFooter} ${classes.embedFooterText} ${classes.embedMargin}`}>
                     {parse(`<#${this.state.channel_id}>`)}
                     <span class={classes.embedFooterSeparator}>•</span>
@@ -146,8 +152,9 @@ module.exports = class LinkEmbed extends React.Component {
         jumpToMessage(this.state.channel_id, this.state.id)
     }
 
-    suppress() {
-        suppressed.push(this.props.id)
-        this.setState({})
+    handleSuppress() {
+        if(suppressed.includes(this.state.id)) suppressed.splice(suppressed.findIndex(e=>e===this.state.id), 1);
+        else suppressed.push(this.state.id);
+        this.setState({});
     }
 }

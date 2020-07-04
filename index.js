@@ -6,9 +6,7 @@ const { inject, uninject } = require('powercord/injector')
 const cache = {}, suppressed = []
 let lastFetch = 0
 
-const { parse } = getModule(['parse', 'parseTopic'], false)
 const { getMessage } = getModule(['getMessages'], false)
-const { getChannel } = getModule(['getChannel'], false)
 const dispatcher = getModule(['dispatch'], false)
 const User = getModule(m => m.prototype && m.prototype.tag, false)
 const Timestamp = getModule(m => m.prototype && m.prototype.toDate && m.prototype.month, false)
@@ -37,7 +35,7 @@ module.exports = class MessageLinksEmbed extends Plugin {
 
         const Embed = await getModuleByDisplayName('Embed')
         inject('mlembed', Embed.prototype, 'render', function (args) {
-            if (!this.props.embed || !isMLEmbed(this.props.embed)) return args
+            if (!this.props.embed || this.props.embed.__mlembed || !isMLEmbed(this.props.embed)) return args
 
             const msg = this.props.embed.author.name[1].props.__mlembed // hack
             const { renderAll } = this
@@ -90,8 +88,24 @@ module.exports = class MessageLinksEmbed extends Plugin {
                             url: attachment.url
                         }
                     }
-                } else this.props.embed.image = attachment
+                } else {
+                    this.props.embed.image = attachment
+                    msg.attachments.forEach(a => {
+                        if (a.width && !isVideo(a)) {
+                            if (!this.props.embed.images) this.props.embed.images = []
+                            this.props.embed.images.push(a)
+                        }
+                    })
+                    msg.embeds.forEach(e => {
+                        if (e.type == 'image') {
+                            if (!this.props.embed.images) this.props.embed.images = []
+                            this.props.embed.images.push(e.image || e.thumbnail)
+                        }
+                    })
+                    if (this.props.embed.images && this.props.embed.images.length == 1) delete this.props.embed.images
+                }
             } else if (msg.attachments[0] && msg.attachments[0].hasOwnProperty('size')) this.props._attachment = msg.attachments[0]
+            this.props.embed.__mlembed = true
 
             return args
         }, true)
@@ -140,6 +154,8 @@ module.exports = class MessageLinksEmbed extends Plugin {
     }
 
     async processLinks(message, links = []) {
+        const { parse } = await getModule(['parse', 'parseTopic'])
+
         const embeds = []
         for (let i = 0; i < links.length; i++) {
             const linkArray = links[i].split('/')
@@ -163,6 +179,7 @@ module.exports = class MessageLinksEmbed extends Plugin {
         this.updateMessageEmbeds(message.id, message.channel_id, [ ...embeds, ...message.embeds ])
     }
     updateMessageEmbeds(id, cid, embeds) {
+        const { getChannel } = getModule(['getChannel'], false)
         dispatcher.dispatch({ type: 'MESSAGE_UPDATE', message: {
             channel_id: cid,
             guild_id: getChannel(cid).guild_id,

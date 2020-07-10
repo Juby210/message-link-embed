@@ -16,6 +16,8 @@ const isVideo = attachment => !!attachment.video || !!attachment.url.match(/\.(?
 
 module.exports = class MessageLinksEmbed extends Plugin {
     async startPlugin() {
+        this.loadStylesheet('style.css')
+
         const MessageContent = await getModule(m => m.type && m.type.displayName == 'MessageContent')
         inject('mlembed-message', MessageContent, 'type', ([{ message }], res) => {
             if (suppressed.includes(message.id) || !Array.isArray(res.props.children[0]) ||
@@ -35,7 +37,7 @@ module.exports = class MessageLinksEmbed extends Plugin {
 
         const Embed = await getModuleByDisplayName('Embed')
         inject('mlembed', Embed.prototype, 'render', function (args) {
-            if (!this.props.embed || this.props.embed.__mlembed || !isMLEmbed(this.props.embed)) return args
+            if (!this.props.embed || !isMLEmbed(this.props.embed)) return args
 
             const msg = this.props.embed.author.name[1].props.__mlembed // hack
             const { renderAll } = this
@@ -51,8 +53,8 @@ module.exports = class MessageLinksEmbed extends Plugin {
                     }
                 }
 
-                if (!this.props._attachment) return res
-                res.media = React.createElement('div', { style: { minWidth: '450px' } }, React.createElement(Attachment, this.props._attachment))
+                if (!this.props.embed._attachment) return res
+                res.media = React.createElement(Attachment, { className: 'mle-attachment', ...this.props.embed._attachment })
 
                 return res
             }
@@ -61,6 +63,7 @@ module.exports = class MessageLinksEmbed extends Plugin {
                 const m = getMessage(msg.embedmessage.channel_id, msg.embedmessage.id) || { embeds: [] }
                 _this.updateMessageEmbeds(msg.embedmessage.id, msg.embedmessage.channel_id, m.embeds.filter(e => !isMLEmbed(e)))
             }
+            if (this.props.embed.__mlembed) return args // we changed embed props before, so we don't need to change it again
 
             let attachment
             if (msg.attachments[0] && msg.attachments[0].width) attachment = msg.attachments[0]
@@ -104,7 +107,7 @@ module.exports = class MessageLinksEmbed extends Plugin {
                     })
                     if (this.props.embed.images && this.props.embed.images.length == 1) delete this.props.embed.images
                 }
-            } else if (msg.attachments[0] && msg.attachments[0].hasOwnProperty('size')) this.props._attachment = msg.attachments[0]
+            } else if (msg.attachments[0] && msg.attachments[0].hasOwnProperty('size')) this.props.embed._attachment = msg.attachments[0]
             this.props.embed.__mlembed = true
 
             return args

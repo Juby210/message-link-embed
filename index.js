@@ -20,9 +20,9 @@ module.exports = class MessageLinksEmbed extends Plugin {
 
         const MessageContent = await getModule(m => m.type && m.type.displayName == 'MessageContent')
         inject('mlembed-message', MessageContent, 'type', ([{ message }], res) => {
-            if (suppressed.includes(message.id) || !Array.isArray(res.props.children[0]) ||
-                (message.embeds[0] && isMLEmbed(message.embeds[0]))) return res
-            this.processLinks(message, res.props.children[0].filter(c =>
+            const children = res.props.children.find(c => Array.isArray(c))
+            if (suppressed.includes(message.id) || !children || (message.embeds[0] && isMLEmbed(message.embeds[0]))) return res
+            this.processLinks(message, children.filter(c =>
                 c.type && c.type.displayName == 'MaskedLink' &&
                 c.props.href.match(/https?:\/\/((canary|ptb)\.)?discord(app)?\.com\/channels\/(\d{17,19}|@me)\/\d{17,19}\/\d{17,19}/g)
             ).map(c => c.props.href))

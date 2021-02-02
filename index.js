@@ -138,19 +138,21 @@ module.exports = class MessageLinksEmbed extends Plugin {
         let message = getMessage(channelId, messageId) || cache[messageId]
         if (!message) {
             if (lastFetch > Date.now() - 2500) await new Promise(r => setTimeout(r, 2500))
-            const data = await get({
-                url: Endpoints.MESSAGES(channelId),
-                query: {
-                    limit: 1,
-                    around: messageId
-                },
-                retries: 2
-            })
-            lastFetch = Date.now()
-            message = data.body.find(m => m.id == messageId)
-            if (!message) return
-            message.author = new User(message.author)
-            message.timestamp = new Timestamp(message.timestamp)
+            try {
+                const data = await get({
+                    url: Endpoints.MESSAGES(channelId),
+                    query: {
+                        limit: 1,
+                        around: messageId
+                    },
+                    retries: 2
+                })
+                lastFetch = Date.now()
+                message = data.body.find(m => m.id == messageId)
+                if (!message) return
+                message.author = new User(message.author)
+                message.timestamp = new Timestamp(message.timestamp)
+            } catch(e) { return }
         }
         cache[messageId] = message
         return message

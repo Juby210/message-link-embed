@@ -1,13 +1,14 @@
 const { Plugin } = require('powercord/entities')
 const { findInReactTree } = require('powercord/util')
-const { getModule, getModuleByDisplayName, http: { get }, constants: { Endpoints }, React } = require('powercord/webpack')
+const { getModule, getModuleByDisplayName, http: { get }, constants: { Endpoints }, React, FluxDispatcher } = require('powercord/webpack')
 const { inject, uninject } = require('powercord/injector')
 
 const cache = {}, suppressed = []
 let lastFetch = 0
 
+const { parse } = getModule(['parse', 'parseTopic'], false)
+const { getChannel } = getModule(['getChannel'], false)
 const { getMessage } = getModule(['getMessages'], false)
-const dispatcher = getModule(['dispatch'], false)
 const User = getModule(m => m.prototype && m.prototype.tag, false)
 const Timestamp = getModule(m => m.prototype && m.prototype.toDate && m.prototype.month, false)
 
@@ -159,8 +160,6 @@ module.exports = class MessageLinksEmbed extends Plugin {
     }
 
     async processLinks(message, links = []) {
-        const { parse } = await getModule(['parse', 'parseTopic'])
-
         const embeds = []
         for (let i = 0; i < links.length; i++) {
             const linkArray = links[i].split('/')
@@ -184,8 +183,7 @@ module.exports = class MessageLinksEmbed extends Plugin {
         this.updateMessageEmbeds(message.id, message.channel_id, [ ...embeds, ...message.embeds ])
     }
     updateMessageEmbeds(id, cid, embeds) {
-        const { getChannel } = getModule(['getChannel'], false)
-        dispatcher.dispatch({ type: 'MESSAGE_UPDATE', message: {
+        FluxDispatcher.dispatch({ type: 'MESSAGE_UPDATE', message: {
             channel_id: cid,
             guild_id: getChannel(cid).guild_id,
             id, embeds

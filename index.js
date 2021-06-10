@@ -9,11 +9,14 @@ let lastFetch = 0
 const { parse } = getModule(['parse', 'parseTopic'], false)
 const { getChannel } = getModule(['getChannel'], false)
 const { getMessage } = getModule(['getMessages'], false)
+const { getUserAvatarURL } = getModule(['getUserAvatarURL'], false)
 const User = getModule(m => m.prototype && m.prototype.tag, false)
 const Timestamp = getModule(m => m.prototype && m.prototype.toDate && m.prototype.month, false)
 
-const isMLEmbed = e => e && e.author && e.author.name[1] && e.author.name[1].props && e.author.name[1].props.__mlembed
-const isVideo = attachment => !!attachment.video || !!attachment.url.match(/\.(?:mp4|mov|webm)$/)
+const isMLEmbed = e => typeof e?.author?.name[1]?.props?.__mlembed !== 'undefined'
+const isVideo = attachment => !!attachment.video || /\.(?:mp4|mov|webm)$/.test(attachment.url)
+
+const re = /https?:\/\/((canary|ptb)\.)?discord(app)?\.com\/channels\/(\d{17,19}|@me)\/\d{17,19}\/\d{17,19}/
 
 module.exports = class MessageLinksEmbed extends Plugin {
     async startPlugin() {
@@ -23,10 +26,10 @@ module.exports = class MessageLinksEmbed extends Plugin {
         inject('mlembed-message', MessageContent, 'type', ([{ message }], res) => {
             const children = res.props.children.find(c => Array.isArray(c))
             if (suppressed.includes(message.id) || !children || (message.embeds[0] && isMLEmbed(message.embeds[0]))) return res
-            this.processLinks(message, children.filter(c =>
-                c.type && c.type.displayName == 'MaskedLink' &&
-                c.props.href.match(/https?:\/\/((canary|ptb)\.)?discord(app)?\.com\/channels\/(\d{17,19}|@me)\/\d{17,19}\/\d{17,19}/g)
-            ).map(c => c.props.href))
+            this.processLinks(
+              message,
+              children.filter(c => c.type?.displayName == "MaskedLink" && re.test(c.props.href)).map(c => c.props.href)
+            )
 
             return res
         })
@@ -164,15 +167,17 @@ module.exports = class MessageLinksEmbed extends Plugin {
         for (let i = 0; i < links.length; i++) {
             const linkArray = links[i].split('/')
             const msg = await this.getMsgWithQueue(linkArray[5], linkArray[6])
-            if (msg) embeds.push({
+            if (!msg) continue;
+            const avatarUrl = getUserAvatarURL(msg.author);
+            embeds.push({
                 author: {
-                    proxy_icon_url: msg.author.avatarURL,
-                    icon_url: msg.author.avatarURL,
+                    proxy_icon_url: avatarUrl,
+                    icon_url: avatarUrl,
                     name: [ msg.author.tag, React.createElement(() => null, { __mlembed: { ...msg, embedmessage: message } }) ], // hack
                     url: links[i]
                 },
-                color: msg.colorString ? parseInt(msg.colorString.substr(1), 16) : undefined,
-                description: msg.content,
+                color: msg.colorString ? parseInt(msg.colorString.substr(1), 16) : msg.embeds.find(e => e.color)?.color,
+                description: msg.content || msg.embeds.find(e => e.description)?.description || '',
                 footer: { text: parse(`<#${msg.channel_id}>`) },
                 timestamp: msg.timestamp,
                 type: 'rich'
@@ -182,6 +187,7 @@ module.exports = class MessageLinksEmbed extends Plugin {
 
         this.updateMessageEmbeds(message.id, message.channel_id, [ ...embeds, ...message.embeds ])
     }
+
     updateMessageEmbeds(id, cid, embeds) {
         FluxDispatcher.dispatch({ type: 'MESSAGE_UPDATE', message: {
             channel_id: cid,

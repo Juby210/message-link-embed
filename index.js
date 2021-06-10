@@ -29,7 +29,7 @@ module.exports = class MessageLinksEmbed extends Plugin {
             this.processLinks(
               message,
               children.filter(c => c.type?.displayName == "MaskedLink" && re.test(c.props.href)).map(c => c.props.href)
-            );
+            )
 
             return res
         })
@@ -177,7 +177,7 @@ module.exports = class MessageLinksEmbed extends Plugin {
                     url: links[i]
                 },
                 color: msg.colorString ? parseInt(msg.colorString.substr(1), 16) : msg.embeds.find(e => e.color)?.color,
-                description: msg.content || msg.embeds.find(e => e.description)?.description || "",
+                description: msg.content || msg.embeds.find(e => e.description)?.description || '',
                 footer: { text: parse(`<#${msg.channel_id}>`) },
                 timestamp: msg.timestamp,
                 type: 'rich'
@@ -187,7 +187,7 @@ module.exports = class MessageLinksEmbed extends Plugin {
 
         this.updateMessageEmbeds(message.id, message.channel_id, [ ...embeds, ...message.embeds ])
     }
-    
+
     updateMessageEmbeds(id, cid, embeds) {
         FluxDispatcher.dispatch({ type: 'MESSAGE_UPDATE', message: {
             channel_id: cid,

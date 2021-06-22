@@ -16,7 +16,7 @@ const Timestamp = getModule(m => m.prototype && m.prototype.toDate && m.prototyp
 const isMLEmbed = e => typeof e?.author?.name[1]?.props?.__mlembed !== 'undefined'
 const isVideo = attachment => !!attachment.video || /\.(?:mp4|mov|webm)$/.test(attachment.url)
 
-const re = /https?:\/\/((canary|ptb)\.)?discord(app)?\.com\/channels\/(\d{17,19}|@me)\/\d{17,19}\/\d{17,19}/
+const re = /https?:\/\/([^\s]*\.)?discord(app)?\.com\/channels\/(\d{17,19}|@me)\/\d{17,19}\/\d{17,19}/
 
 module.exports = class MessageLinksEmbed extends Plugin {
     async startPlugin() {

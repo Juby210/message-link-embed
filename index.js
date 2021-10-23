@@ -7,7 +7,7 @@ const cache = {}, suppressed = []
 let lastFetch = 0
 
 const { parse } = getModule(['parse', 'parseTopic'], false)
-const { getChannel } = getModule(['getChannel'], false)
+const { getChannel } = getModule(['getChannel', 'getDMFromUserId'], false)
 const { getMessage } = getModule(['getMessages'], false)
 const { getUserAvatarURL } = getModule(['getUserAvatarURL'], false)
 const User = getModule(m => m.prototype && m.prototype.tag, false)
